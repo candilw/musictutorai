@@ -15,6 +15,7 @@
     --guitar: #2fd6ff;
     --minus: #b6ff3b;
     --accent: #ff3d7f;
+    --real: #ff4b3e;
     --radius: 16px;
   }
   * { box-sizing: border-box; }
@@ -67,6 +68,35 @@
     position: absolute; top: 10px; right: 10px; padding: 6px 14px; border-radius: 12px;
     background: rgba(0,0,0,.7); font-weight: 900; font-size: 26px; pointer-events: none;
     font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- real band (YouTube sound + muted notation video) ---------- */
+  .realRow { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-start; }
+  .ytWrap {
+    position: relative; flex: 0 0 auto; width: 356px; max-width: 100%; min-width: 200px; height: 200px; min-height: 200px;
+    background: #000; border-radius: 10px; overflow: hidden; border: 2px solid var(--real);
+  }
+  .ytWrap iframe, .ytWrap #ytPlayer { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .realSide { flex: 1 1 220px; min-width: 0; }
+  .ytLabel { font-weight: 800; font-size: 15px; color: var(--real); margin-bottom: 8px; }
+  .syncRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .syncRow .lbl { font-weight: 800; color: var(--muted); }
+  .syncRow button { min-height: 48px; min-width: 64px; font-size: 16px; padding: 4px 10px; }
+  .syncRow b { font-variant-numeric: tabular-nums; min-width: 4.5em; text-align: center; font-size: 18px; }
+  .syncHint { color: var(--muted); font-size: 14px; margin: 6px 0 0; }
+  .realMsg { margin: 10px 0 0; font-weight: 700; font-size: 15px; color: #ffd23f; }
+  .realMsg:empty { display: none; }
+  .realMsg a { color: #7fd8ff; word-break: break-all; }
+  .realPanel.failed .ytWrap { display: none; }
+  .realPanel.failed .syncRow, .realPanel.failed .syncHint { opacity: .4; }
+  /* big screen: the YouTube player stays visible (YouTube requires >= 200x200) as a corner thumbnail */
+  html.bigOpen.realMode .realPanel:not(.failed) .ytWrap {
+    position: fixed; z-index: 2147483001; width: 200px; height: 200px; min-width: 200px; max-width: none;
+    left: calc(env(safe-area-inset-left) + 8px); bottom: calc(env(safe-area-inset-bottom) + 8px);
+    border: 2px solid rgba(255,255,255,.45); box-shadow: 0 4px 18px rgba(0,0,0,.6);
+  }
+  @media (orientation: portrait) and (max-width: 600px) {
+    html.bigOpen.realMode .realPanel:not(.failed) .ytWrap { bottom: calc(env(safe-area-inset-bottom) + 70px); }
   }
 
   /* ---------- big screen (CSS overlay; real fullscreen is only an extra) ---------- */
@@ -132,6 +162,8 @@
   .v-full   { --c: var(--full); }
   .v-guitar { --c: var(--guitar); }
   .v-minus  { --c: var(--minus); }
+  .v-real   { --c: var(--real); }
+  .versions > button { flex: 1 1 120px; }
   .versions button { border-color: var(--c); color: var(--c); background: transparent; }
   .versions button.on { background: var(--c); color: #111; }
 
@@ -263,6 +295,24 @@
         </div>
         <div class="err" id="err"></div>
       </div>
+
+      <div class="card realPanel" id="realPanel" style="display:none">
+        <h2>Real Band</h2>
+        <div class="realRow">
+          <div class="ytWrap" id="ytWrap"><div id="ytPlayer"></div></div>
+          <div class="realSide">
+            <div class="ytLabel">🔊 Sound: official Hal Leonard demo (YouTube)</div>
+            <div class="syncRow">
+              <span class="lbl">Sync:</span>
+              <button id="syncMinus" aria-label="Sync minus 0.1 seconds">−0.1 s</button>
+              <b id="syncVal">0.0 s</b>
+              <button id="syncPlus" aria-label="Sync plus 0.1 seconds">+0.1 s</button>
+            </div>
+            <p class="syncHint">If the notes are early, tap +; if late, tap −.</p>
+            <p class="realMsg" id="realMsg"></p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="stack">
@@ -310,7 +360,7 @@
       <li><span class="tag" style="background:var(--minus)">You Play!</span> The band plays without guitar — you're the guitarist. Play along!</li>
       <li><b>Start slow:</b> set speed to <b>75%</b>, loop <b>measures 9–14</b> (the high chords), and turn on the count-in. When it feels easy, go to 90%, then 100%.</li>
     </ol>
-    <p class="kbd">Keyboard: <b>Space</b> play/pause · <b>← / →</b> back/forward a bar · <b>1 / 2 / 3</b> switch version · <b>L</b> loop on/off · <b>F</b> big screen · <b>Esc</b> exit big screen</p>
+    <p class="kbd">Keyboard: <b>Space</b> play/pause · <b>← / →</b> back/forward a bar · <b>1 / 2 / 3 / 4</b> switch version · <b>L</b> loop on/off · <b>F</b> big screen · <b>Esc</b> exit big screen</p>
   </details>
 
   <p id="demoWrap" style="text-align:center;margin:18px 0 0"><a id="demoLink" href="https://www.youtube.com/watch?v=7_j3s9eTnx0" target="_blank" rel="noopener" style="display:inline-block;padding:14px 22px;border-radius:14px;background:#ff3d3d;color:#fff;font-weight:700;font-size:18px;text-decoration:none">&#9654; <span id="demoText">Hear the real band (official Hal Leonard demo on YouTube)</span></a></p>
@@ -328,12 +378,20 @@
       REQUIRED: id (short, unique, no spaces - used in saved progress keys), title, bpm,
                 beatsPerBar, countInBars, measures, videos (at least one of full / guitar / minus).
       OPTIONAL: subtitle, demoUrl + demoLabel (YouTube button; hidden if no demoUrl),
+                realBand (4th version "Real Band": sound from the official YouTube video, our notation
+                          video plays muted and follows it):
+                    { youtubeId, video: '<song-id>-roadmap.mp4' (notation in performance order: count-in,
+                      then one bar per played bar), roadmap: [page measure number for each played bar],
+                      ytM1: seconds into the YouTube video where measure 1 beat 1 lands (fine-tune with Sync) },
                 note (small footer text), sections (loop chips: {name, from, to}),
                 cards (practice cards: {id, title, from, to, speed, version, tip};
                        speed must be one of SPEEDS, version one of full / guitar / minus).
    Timing: one bar = beatsPerBar * 60 / bpm seconds;
            measure m starts at countInBars*bar + (m-1)*bar seconds into the video.
    ==================================================================== */
+// seq(a, b) = [a, a+1, ..., b]  (handy for road maps)
+function seq(a, b) { var r = []; for (var i = a; i <= b; i++) r.push(i); return r; }
+
 var SONGS = [
   {
     id: 'tank',
@@ -347,6 +405,13 @@ var SONGS = [
     demoUrl: 'https://www.youtube.com/watch?v=7_j3s9eTnx0',
     demoLabel: 'Hear the real band (official Hal Leonard demo on YouTube)',
     note: 'Backing band is a practice reconstruction made from the guitar part only — not the official Hal Leonard recording.',
+    // Real Band: page measures in the order the band plays them (repeat, D.S., coda) - 111 bars.
+    realBand: {
+      youtubeId: '7_j3s9eTnx0',
+      video: 'tank-roadmap.mp4',
+      roadmap: [].concat(seq(1, 70), seq(59, 68), [71, 72], seq(35, 50), seq(73, 85)),
+      ytM1: 0.0
+    },
     sections: [
       { name: 'Intro riff', from: 1, to: 2 },
       { name: 'High chords (start here!)', from: 9, to: 14 },
@@ -380,13 +445,15 @@ var SONGS = [
   }
 ];
 
-// The three versions every song can have (labels/colors shared by all songs).
+// The versions a song can have (labels/colors shared by all songs). 'real' needs song.realBand.
 var VERSIONS = {
   full:   { label: 'Full Band',   sub: 'whole band + guitar', color: 'var(--full)',   cls: 'v-full' },
   guitar: { label: 'Guitar Only', sub: 'learn the notes',     color: 'var(--guitar)', cls: 'v-guitar' },
-  minus:  { label: 'You Play!',   sub: 'band without guitar', color: 'var(--minus)',  cls: 'v-minus' }
+  minus:  { label: 'You Play!',   sub: 'band without guitar', color: 'var(--minus)',  cls: 'v-minus' },
+  real:   { label: 'Real Band 🎺', sub: 'official recording', color: 'var(--real)',   cls: 'v-real' }
 };
-var VERSION_ORDER = ['full', 'guitar', 'minus'];
+var VERSION_ORDER = ['full', 'guitar', 'minus', 'real'];
+var REAL_SITE = 'https://candilw.github.io/musictutorai/';
 var SPEEDS = [0.5, 0.75, 0.9, 1];
 /* ======================================================================== */
 
@@ -396,6 +463,7 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
   var GLOBAL_KEY = 'jazzPracticePlayer.v1';                       // {song, version, speed, leadIn}
   function loopKey(id) { return 'jazzPracticePlayer.loop.' + id + '.v1'; }   // {from, to, loop}
   function doneKey(id) { return 'jazzPracticePlayer.done.' + id + '.v1'; }   // {cardId: true}
+  function syncKey(id) { return 'jazzPracticePlayer.sync.' + id + '.v1'; }   // {ytM1}
   var LEGACY = { tank: { loop: 'tankPracticePlayer.v1', done: 'tankPracticePlayer.done.v1' } };
 
   function $(id) { return document.getElementById(id); }
@@ -409,6 +477,7 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
 
   // ---------- current song (everything song-specific hangs off these) ----------
   var SONG, VIDEOS, BAR, OFFSET, doneMap = {}, activeCard = null;
+  var RB = null, ytM1 = 0;          // current song's realBand config + its sync offset
 
   var state = { song: SONGS[0].id, version: 'full', speed: 1, from: 1, to: 1, loop: false, leadIn: true };
   (function () {
@@ -432,9 +501,13 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
     BAR = (s.beatsPerBar || 4) * 60 / s.bpm;
     OFFSET = BAR * (s.countInBars || 0);
     VIDEOS = {};
+    RB = (s.realBand && s.realBand.youtubeId && s.realBand.video && s.realBand.roadmap && s.realBand.roadmap.length) ? s.realBand : null;
+    var sy = readJSON(syncKey(s.id));
+    ytM1 = (sy && typeof sy.ytM1 === 'number' && isFinite(sy.ytM1)) ? sy.ytM1 : ((RB && +RB.ytM1) || 0);
     VERSION_ORDER.forEach(function (k) {
-      if (s.videos && s.videos[k]) {
-        var meta = VERSIONS[k], v = { url: s.videos[k] };
+      var url = k === 'real' ? (RB && RB.video) : (s.videos && s.videos[k]);
+      if (url) {
+        var meta = VERSIONS[k], v = { url: url };
         for (var p in meta) v[p] = meta[p];
         VIDEOS[k] = v;
       }
@@ -461,9 +534,35 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
     var m = Math.floor((t - OFFSET + EPS) / BAR) + 1;
     return Math.min(Math.max(m, 1), SONG.measures);
   }
+  // "bars" = what the current video shows: page measures, or in Real Band the played (road-map) bars.
+  function isReal() { return state.version === 'real' && !!RB; }
+  function barCount() { return isReal() ? RB.roadmap.length : SONG.measures; }
+  function barStart(i) { return OFFSET + (i - 1) * BAR; }
+  function barAt(t) {
+    if (t < OFFSET - EPS) return 0;
+    var i = Math.floor((t - OFFSET + EPS) / BAR) + 1;
+    return Math.min(Math.max(i, 1), barCount());
+  }
+  // first played bar showing page measure m (at or after played bar `after`)
+  function firstBar(m, after) {
+    if (!isReal()) return m;
+    var i = RB.roadmap.indexOf(m, Math.max(0, (after || 1) - 1));
+    if (i < 0) i = RB.roadmap.indexOf(m);
+    return i < 0 ? Math.min(m, RB.roadmap.length) : i + 1;
+  }
+  function ordinal(n) { return n + (n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'); }
+  // {m: page measure (0 = count-in), pass: 1st/2nd/3rd time through}
+  function measureInfo(t) {
+    var i = barAt(t);
+    if (i === 0) return { m: 0, pass: 1 };
+    if (!isReal()) return { m: i, pass: 1 };
+    var m = RB.roadmap[i - 1], pass = 0;
+    for (var k = 0; k < i; k++) if (RB.roadmap[k] === m) pass++;
+    return { m: m, pass: pass };
+  }
   function duration() {
     var d = vid.duration;
-    return (isFinite(d) && d > 0) ? d : measureEnd(SONG.measures);
+    return (isFinite(d) && d > 0) ? d : barStart(barCount() + 1);
   }
   function clampTime(t) { return Math.max(0, Math.min(t, duration() - 0.05)); }
   function fmt(t) {
@@ -472,8 +571,26 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
     s = s % 60;
     return m + ':' + (s < 10 ? '0' : '') + s;
   }
+  // Real Band clock: notationTime = ytTime - ytM1 + count-in
+  function ytToNotation(y) { return y - ytM1 + OFFSET; }
+  function notationToYt(n) { return n + ytM1 - OFFSET; }
+  var lastSeek = { t: 0, at: 0 };
+  function curTime() {
+    if (isReal() && ytReady) {
+      if (Date.now() - lastSeek.at < 350) return lastSeek.t;     // YouTube may report the old time briefly
+      var y = 0;
+      try { y = yt.getCurrentTime() || 0; } catch (e) {}
+      return Math.max(0, ytToNotation(y));
+    }
+    return vid.currentTime || 0;
+  }
   function seek(t) {
     t = clampTime(t);
+    if (isReal()) {
+      lastSeek = { t: t, at: Date.now() };
+      if (ytReady) { try { yt.seekTo(Math.max(0, notationToYt(t)), true); } catch (e) {} }
+      else ytPendingSeek = t;
+    }
     try { vid.currentTime = t; } catch (e) { /* not ready */ }
     render();
   }
@@ -578,6 +695,7 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
     var s = findSong(id);
     if (!s) return;
     vid.pause();
+    ytPause();
     useSong(s, true);                       // From/To reset to 1..measures
     save();
     buildSongUI();
@@ -627,9 +745,13 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
 
   // ---------- version switching ----------
   var pendingSeek = null, pendingPlay = false;
+  // YouTube offers 0.5 / 0.75 / 1, so 90% plays at 100% in Real Band (the 90% button is hidden there)
+  function rate() { return (isReal() && state.speed === 0.9) ? 1 : state.speed; }
   function applyRate() {
-    try { vid.defaultPlaybackRate = state.speed; } catch (e) {}
-    try { vid.playbackRate = state.speed; } catch (e) {}
+    var r = rate();
+    if (isReal() && ytReady) { try { yt.setPlaybackRate(r); } catch (e) {} }
+    try { vid.defaultPlaybackRate = r; } catch (e) {}
+    try { vid.playbackRate = r; } catch (e) {}
     try { vid.preservesPitch = true; } catch (e) {}
     try { vid.webkitPreservesPitch = true; } catch (e) {}
     try { vid.mozPreservesPitch = true; } catch (e) {}
@@ -639,23 +761,53 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
     pendingSeek = keepTime;
     pendingPlay = resume;
     $('err').style.display = 'none';
+    vid.muted = (k === 'real');             // Real Band: sound comes only from YouTube
+    if (k !== 'real') ytPause();
     vid.src = v.url;
     vid.load();
     applyRate();
+    if (k === 'real') {
+      pendingPlay = false;                  // the notation video follows YouTube, never plays on its own
+      lastSeek = { t: keepTime || 0, at: Date.now() };
+      ensureYT();
+      if (ytReady) {
+        try { yt.seekTo(Math.max(0, notationToYt(keepTime || 0)), true); } catch (e) {}
+        if (resume) ytPlay();               // inside the tap (iOS needs that for sound)
+      } else {
+        ytPendingSeek = keepTime || 0;
+        ytWantPlay = !!resume;
+      }
+      return;
+    }
     if (resume) {
       // call play() inside the user gesture (helps iPad Safari)
       var p = vid.play();
       if (p && p.catch) p.catch(function () {});
     }
   }
+  // Same musical spot in the other kind of video (page-measure video <-> road-map video).
+  function convertTime(t, toReal) {
+    if (!RB || t < OFFSET) return t;
+    var i = Math.floor((t - OFFSET) / BAR) + 1, frac = (t - OFFSET) - (i - 1) * BAR;
+    if (toReal) {
+      var j = RB.roadmap.indexOf(Math.min(i, SONG.measures));
+      return j < 0 ? t : barStart(j + 1) + frac;
+    }
+    var m = RB.roadmap[Math.min(i, RB.roadmap.length) - 1];
+    return m ? measureStart(m) + frac : t;
+  }
+  function isPlaying() { return isReal() ? realPlaying() : (!vid.paused && !vid.ended); }
   function setVersion(k) {
     if (!VIDEOS[k]) return;
     if (k === state.version && vid.currentSrc) return;
-    var t = vid.currentTime || 0;
-    if (pendingSeek != null) t = pendingSeek;
-    var wasPlaying = !vid.paused && !vid.ended;
-    state.version = k; save();
-    updateVersionUI();
+    var wasReal = isReal();
+    var t = curTime();
+    if (pendingSeek != null && !wasReal) t = pendingSeek;
+    var wasPlaying = isPlaying();
+    state.version = k;
+    if (wasReal !== isReal()) t = convertTime(t, isReal());
+    save();
+    updateVersionUI(); updateSpeedUI(); updateLoopUI();
     loadVersion(k, t, wasPlaying);
   }
   vid.addEventListener('loadedmetadata', function () {
@@ -678,26 +830,144 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
     e.style.display = 'block';
   });
   vid.addEventListener('ratechange', function () {
-    if (Math.abs(vid.playbackRate - state.speed) > 0.001) applyRate();
+    if (Math.abs(vid.playbackRate - rate()) > 0.001) applyRate();
   });
+
+  // ---------- Real Band: YouTube IFrame API (loaded only when Real Band is first used) ----------
+  var yt = null, ytReady = false, ytFailed = false, ytLoading = false, ytWantPlay = false;
+  var ytPendingSeek = null, ytVideoId = null, ytTimer = null, ytState = -1;
+  function realMsg(html) { $('realMsg').innerHTML = html || ''; }
+  function failYT() {
+    if (ytReady) return;
+    ytFailed = true; ytLoading = false; clearTimeout(ytTimer);
+    $('realPanel').classList.add('failed');
+    realMsg('Real Band works on the website version: <a href="' + REAL_SITE + '" target="_blank" rel="noopener">' + REAL_SITE + '</a>');
+    render();
+  }
+  function ensureYT() {
+    if (!RB) return;
+    if (ytReady) {
+      if (ytVideoId !== RB.youtubeId) { try { yt.cueVideoById(RB.youtubeId); ytVideoId = RB.youtubeId; } catch (e) {} }
+      return;
+    }
+    if (ytFailed) { failYT(); return; }
+    if (ytLoading) return;
+    ytLoading = true;
+    realMsg('Loading the real band…');
+    ytTimer = setTimeout(function () { if (!ytReady) failYT(); }, 8000);
+    if (window.YT && window.YT.Player) { createPlayer(); return; }
+    var prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = function () {
+      if (typeof prev === 'function') { try { prev(); } catch (e) {} }
+      createPlayer();
+    };
+    try {
+      var sc = document.createElement('script');
+      sc.src = 'https://www.youtube.com/iframe_api';
+      sc.async = true;
+      sc.onerror = failYT;
+      document.head.appendChild(sc);
+    } catch (e) { failYT(); }
+  }
+  function createPlayer() {
+    try {
+      ytVideoId = RB.youtubeId;
+      yt = new YT.Player('ytPlayer', {
+        width: '100%', height: '100%', videoId: RB.youtubeId,
+        playerVars: { playsinline: 1, rel: 0, modestbranding: 1 },
+        events: {
+          onReady: function () {
+            ytReady = true; ytFailed = false; ytLoading = false; clearTimeout(ytTimer);
+            $('realPanel').classList.remove('failed');
+            realMsg('');
+            if (ytVideoId !== RB.youtubeId) { try { yt.cueVideoById(RB.youtubeId); ytVideoId = RB.youtubeId; } catch (e) {} }
+            applyRate();
+            if (ytPendingSeek != null) { try { yt.seekTo(Math.max(0, notationToYt(ytPendingSeek)), true); } catch (e) {} ytPendingSeek = null; }
+            if (ytWantPlay && isReal()) ytPlay();
+            ytWantPlay = false;
+            render();
+          },
+          onStateChange: function (e) { ytState = e.data; syncReal(); showBar(); },
+          onError: function (e) { realMsg('The YouTube video could not play here (error ' + (e && e.data) + '). Try the website version: <a href="' + REAL_SITE + '" target="_blank" rel="noopener">' + REAL_SITE + '</a>'); }
+        }
+      });
+    } catch (e) { failYT(); }
+  }
+  function realPlaying() {
+    if (!ytReady) return false;
+    var st = ytState;
+    try { st = yt.getPlayerState(); } catch (e) {}
+    return st === 1 || st === 3;            // playing or buffering
+  }
+  function ytPlay() {
+    if (!ytReady) return;
+    applyRate();
+    try { yt.playVideo(); } catch (e) {}
+    ytState = 1;
+  }
+  function ytPause() {
+    if (!ytReady) return;
+    try { yt.pauseVideo(); } catch (e) {}
+    ytState = 2;
+  }
+  function syncSave() { writeJSON(syncKey(SONG.id), { ytM1: Math.round(ytM1 * 10) / 10 }); }
+  function updateSyncUI() { $('syncVal').textContent = ytM1.toFixed(1) + ' s'; }
+  function nudgeSync(d) {
+    var t = curTime();
+    ytM1 = Math.round((ytM1 + d) * 10) / 10;
+    syncSave(); updateSyncUI();
+    if (isReal()) { lastSeek = { t: Math.max(0, t - d), at: 0 }; syncReal(); }
+  }
+  $('syncMinus').addEventListener('click', function () { nudgeSync(-0.1); });
+  $('syncPlus').addEventListener('click', function () { nudgeSync(0.1); });
+  // keep the muted notation video on the YouTube clock
+  function syncReal() {
+    if (!isReal() || !ytReady) return;
+    var n;
+    try { n = ytToNotation(yt.getCurrentTime() || 0); } catch (e) { return; }
+    var playing = realPlaying();
+    var end = (isFinite(vid.duration) && vid.duration > 0) ? vid.duration - 0.05 : Infinity;
+    if (playing && n >= 0 && n < end) {
+      if (Math.abs((vid.currentTime || 0) - n) > 0.12) { try { vid.currentTime = n; } catch (e) {} }
+      if (vid.paused) { var p = vid.play(); if (p && p.catch) p.catch(function () {}); }
+    } else {
+      if (!vid.paused) vid.pause();
+      if (n < 0 && vid.currentTime > 0.05) { try { vid.currentTime = 0; } catch (e) {} }
+      else if (!playing && Math.abs((vid.currentTime || 0) - Math.max(0, Math.min(n, end))) > 0.12) {
+        try { vid.currentTime = Math.max(0, Math.min(n, end)); } catch (e) {}
+      }
+    }
+    if (playing) checkLoop();
+    render();
+  }
+  setInterval(syncReal, 200);
 
   function updateVersionUI() {
     var v = VIDEOS[state.version];
     Array.prototype.forEach.call(verBox.children, function (b) { b.classList.toggle('on', b.dataset.v === state.version); });
     document.documentElement.style.setProperty('--vcolor', v.color);
     $('badge').textContent = v.label;
+    $('realPanel').style.display = isReal() ? '' : 'none';
+    document.documentElement.classList.toggle('realMode', isReal());
+    updateSyncUI();
     updateCardsUI();
   }
 
   // ---------- speed ----------
   function setSpeed(s) { state.speed = s; save(); applyRate(); updateSpeedUI(); }
   function updateSpeedUI() {
-    Array.prototype.forEach.call(spBox.children, function (b) { b.classList.toggle('on', parseFloat(b.dataset.s) === state.speed); });
+    var r = rate();
+    Array.prototype.forEach.call(spBox.children, function (b) {
+      var s = parseFloat(b.dataset.s);
+      b.style.display = (isReal() && s === 0.9) ? 'none' : '';
+      b.classList.toggle('on', s === r);
+    });
   }
 
   // ---------- loop ----------
-  function loopStartTime() { return Math.max(0, measureStart(state.from) - (state.leadIn ? BAR : 0)); }
-  function loopEndTime() { return measureEnd(state.to); }
+  // Real Band: From/To are page measures; use their first appearance in the road map.
+  function loopStartTime() { return Math.max(0, barStart(firstBar(state.from)) - (state.leadIn ? BAR : 0)); }
+  function loopEndTime() { return barStart(firstBar(state.to, firstBar(state.from))) + BAR; }
   function step(which, d) {
     if (which === 'from') {
       state.from = Math.min(Math.max(1, state.from + d), SONG.measures);
@@ -726,7 +996,7 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
   $('loopBtn').addEventListener('click', function () {
     state.loop = !state.loop; save(); updateLoopUI();
     if (state.loop) {
-      var t = vid.currentTime || 0;
+      var t = curTime();
       if (t < loopStartTime() - EPS || t >= loopEndTime()) seek(loopStartTime());
     }
   });
@@ -748,13 +1018,13 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
     updateCardsUI();
   }
   function checkLoop() {
-    if (!state.loop || vid.seeking) return;
-    var t = vid.currentTime;
+    if (!state.loop || (!isReal() && vid.seeking)) return;
+    var t = curTime();
     var end = Math.min(loopEndTime(), duration() - 0.08);
     if (t >= end) seek(loopStartTime());
   }
   vid.addEventListener('ended', function () {
-    if (state.loop) {
+    if (state.loop && !isReal()) {
       seek(loopStartTime());
       var p = vid.play(); if (p && p.catch) p.catch(function () {});
     }
@@ -763,6 +1033,20 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
   // ---------- transport ----------
   function togglePlay() {
     if (!vid.currentSrc) loadVersion(state.version, 0, false);
+    if (isReal()) {
+      if (!ytReady) { ytWantPlay = true; ensureYT(); return; }
+      if (realPlaying()) { ytPause(); vid.pause(); }
+      else {
+        if (state.loop) {
+          var lt = curTime();
+          if (lt < loopStartTime() - EPS || lt >= loopEndTime() - EPS) seek(loopStartTime());
+        }
+        ytPlay();                           // inside the tap: iOS needs that for sound
+        var vp = vid.play(); if (vp && vp.catch) vp.catch(function () {});
+      }
+      render();
+      return;
+    }
     if (vid.paused || vid.ended) {
       if (state.loop) {
         var t = vid.currentTime || 0;
@@ -774,18 +1058,17 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
       vid.pause();
     }
   }
-  function curMeasureFloat() { return measureAt(vid.currentTime || 0); }
+  // 1 bar back/forward (in Real Band: one played bar = 1.875 s on the YouTube clock)
   function back() {
-    var t = vid.currentTime || 0;
-    var m = measureAt(t);
-    if (m <= 1) { seek(m === 1 && t - measureStart(1) > 0.4 ? measureStart(1) : 0); return; }
-    // if we're well into the bar, a quick double-tap still moves back properly
-    seek(measureStart(m - 1));
+    var t = curTime();
+    var i = barAt(t);
+    if (i <= 1) { seek(i === 1 && t - barStart(1) > 0.4 ? barStart(1) : 0); return; }
+    seek(barStart(i - 1));
   }
   function fwd() {
-    var m = curMeasureFloat();
-    if (m >= SONG.measures) return;
-    seek(measureStart(m + 1));
+    var i = barAt(curTime());
+    if (i >= barCount()) return;
+    seek(barStart(i + 1));
   }
   function restart() { seek(state.loop ? loopStartTime() : 0); }
   $('playBtn').addEventListener('click', togglePlay);
@@ -799,7 +1082,7 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
   function showBar() {
     box.classList.remove('idle');
     clearTimeout(bigTimer);
-    if (isBig() && !vid.paused && !vid.ended) bigTimer = setTimeout(function () { box.classList.add('idle'); }, 3000);
+    if (isBig() && isPlaying()) bigTimer = setTimeout(function () { box.classList.add('idle'); }, 3000);
   }
   function enterBig() {
     if (isBig()) return;
@@ -812,9 +1095,11 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
     showBar(); render();
     // Enhancement only: real fullscreen may be refused (sandboxed iframe, iPhone). The CSS overlay works without it.
     try {
-      var req = box.requestFullscreen || box.webkitRequestFullscreen;
+      // whole page goes fullscreen (the CSS overlay fills it), so the YouTube thumbnail stays visible in Real Band
+      var root = document.documentElement;
+      var req = root.requestFullscreen || root.webkitRequestFullscreen;
       if (req) {
-        var r = req.call(box);
+        var r = req.call(root);
         if (r && r.then) r.then(function () { realFS = true; }, function () { realFS = false; });
         else realFS = !!fsElement();
       }
@@ -836,7 +1121,7 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
   }
   function toggleBig() { if (isBig()) exitBig(); else enterBig(); }
   function onFsChange() {
-    if (fsElement() === box) { realFS = true; return; }
+    if (fsElement()) { realFS = true; return; }
     if (realFS && !fsElement()) { realFS = false; exitBig(); }   // user left real fullscreen
   }
   document.addEventListener('fullscreenchange', onFsChange);
@@ -870,25 +1155,27 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
   // ---------- rendering ----------
   var lastLabel = '';
   function render() {
-    var t = vid.currentTime || 0;
-    var m = measureAt(t);
-    var label = m === 0 ? 'Count-in' : String(m);
+    var t = curTime();
+    var mi = measureInfo(t), m = mi.m;
+    var again = mi.pass > 1 ? ' (' + ordinal(mi.pass) + ' time)' : '';
+    var label = m === 0 ? 'Count-in' : String(m) + again;
     if (label !== lastLabel) {
       lastLabel = label;
-      $('measureNow').innerHTML = 'Measure: <span>' + label + '</span>';
-      $('measureOverlay').textContent = m === 0 ? 'Count-in' : 'm. ' + m;
-      $('bigMeasure').textContent = m === 0 ? 'Count-in' : 'Measure ' + m;
+      $('measureNow').innerHTML = 'Measure: <span>' + (m === 0 ? 'Count-in' : m) + '</span>' + (again ? '<small style="font-size:20px;color:var(--muted)">' + again + '</small>' : '');
+      $('measureOverlay').textContent = m === 0 ? 'Count-in' : 'm. ' + m + (mi.pass > 1 ? ' (' + ordinal(mi.pass) + ')' : '');
+      $('bigMeasure').textContent = m === 0 ? 'Count-in' : 'Measure ' + m + again;
     }
     $('timeNow').textContent = fmt(t) + ' / ' + fmt(duration());
-    $('fill').style.width = (t / duration() * 100) + '%';
-    var stopped = vid.paused || vid.ended;
+    $('fill').style.width = Math.min(100, t / duration() * 100) + '%';
+    var stopped = !isPlaying();
     $('playBtn').textContent = stopped ? '▶ Play' : '❚❚ Pause';
     $('bigPlay').textContent = stopped ? '▶' : '❚❚';
   }
-  vid.addEventListener('timeupdate', function () { checkLoop(); render(); });
+  vid.addEventListener('timeupdate', function () { if (!isReal()) checkLoop(); render(); });
   vid.addEventListener('durationchange', updateLoopUI);
   function tick() {
-    if (!vid.paused) { checkLoop(); render(); }
+    if (isReal()) { if (realPlaying()) render(); }
+    else if (!vid.paused) { checkLoop(); render(); }
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
@@ -905,6 +1192,7 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
       case '1': setVersion(VERSION_ORDER[0]); break;
       case '2': setVersion(VERSION_ORDER[1]); break;
       case '3': setVersion(VERSION_ORDER[2]); break;
+      case '4': setVersion(VERSION_ORDER[3]); break;
       case 'l': case 'L': $('loopBtn').click(); break;
       case 'f': case 'F': toggleBig(); break;
       case 'Escape': case 'Esc': if (!isBig()) return; exitBig(); break;
@@ -923,7 +1211,10 @@ var SPEEDS = [0.5, 0.75, 0.9, 1];
   render();
 
   // expose for debugging/testing
-  window.__tank = { state: state, measureAt: measureAt, measureStart: measureStart, video: vid, setVersion: setVersion, selectSong: selectSong, song: function () { return SONG; } };
+  window.__tank = { state: state, measureAt: measureAt, measureStart: measureStart, video: vid, setVersion: setVersion, selectSong: selectSong, song: function () { return SONG; },
+    isReal: isReal, curTime: curTime, measureInfo: measureInfo, barStart: barStart,
+    loopStartTime: function () { return loopStartTime(); }, loopEndTime: function () { return loopEndTime(); },
+    yt: function () { return { ready: ytReady, failed: ytFailed, loading: ytLoading, ytM1: ytM1, player: yt }; } };
 })();
 </script>
 </body>
