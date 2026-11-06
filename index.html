@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tank! Practice Player</title>
+<style>
+  :root {
+    --bg: #0d0f1a;
+    --panel: #171a2b;
+    --panel2: #20243a;
+    --text: #f2f4ff;
+    --muted: #9aa1c4;
+    --full: #ff8a1f;
+    --guitar: #2fd6ff;
+    --minus: #b6ff3b;
+    --accent: #ff3d7f;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 18px; line-height: 1.4;
+    -webkit-tap-highlight-color: transparent;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 14px; }
+  header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  h1 { margin: 0; font-size: 34px; letter-spacing: 1px; font-weight: 900; }
+  h1 .bang { color: var(--accent); }
+  header .sub { color: var(--muted); font-size: 16px; }
+  .songPick { margin-left: auto; display: flex; align-items: center; gap: 10px; font-weight: 800; color: var(--muted);
+    font-size: 15px; text-transform: uppercase; letter-spacing: 2px; }
+  .songPick select {
+    font: inherit; font-size: 20px; font-weight: 800; letter-spacing: 0; text-transform: none; color: var(--text);
+    background-color: var(--panel2); border: 3px solid var(--accent); border-radius: 14px;
+    min-height: 52px; min-width: 200px; padding: 8px 44px 8px 14px; cursor: pointer;
+    -webkit-appearance: none; appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--accent) 50%), linear-gradient(135deg, var(--accent) 50%, transparent 50%);
+    background-position: right 22px center, right 14px center; background-size: 8px 8px; background-repeat: no-repeat;
+  }
+  .songPick select:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+  @media (max-width: 560px) { .songPick { margin-left: 0; width: 100%; } .songPick select { flex: 1 1 auto; } }
+
+  .layout { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 1000px) and (orientation: landscape) {
+    .layout { grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr); align-items: start; }
+  }
+
+  .videoBox {
+    position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000;
+    border-radius: var(--radius); overflow: hidden; border: 3px solid var(--vcolor, var(--full));
+    transition: border-color .2s;
+  }
+  @supports not (aspect-ratio: 16 / 9) {
+    .videoBox { height: 0; padding-top: 56.25%; }
+    .videoBox video { position: absolute; inset: 0; }
+  }
+  video { width: 100%; height: 100%; display: block; background: #000; }
+  .badge {
+    position: absolute; top: 10px; left: 10px; padding: 6px 12px; border-radius: 999px;
+    background: rgba(0,0,0,.65); font-weight: 800; font-size: 16px; color: var(--vcolor, var(--full));
+    pointer-events: none;
+  }
+  .measureBig {
+    position: absolute; top: 10px; right: 10px; padding: 6px 14px; border-radius: 12px;
+    background: rgba(0,0,0,.7); font-weight: 900; font-size: 26px; pointer-events: none;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- big screen (CSS overlay; real fullscreen is only an extra) ---------- */
+  .bigBtn { width: 100%; margin-top: 10px; font-size: 18px; border: 2px solid #3a3f63; }
+  .bigExit, .bigBar, .rotateHint { display: none; }
+  html.bigOpen, html.bigOpen body { overflow: hidden; height: 100%; overscroll-behavior: none; }
+  .videoBox.big {
+    position: fixed; inset: 0; z-index: 2147483000; width: auto; height: auto; aspect-ratio: auto;
+    margin: 0; border: 0; border-radius: 0; background: #000; touch-action: manipulation;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .videoBox.big video { position: static; width: 100%; height: 100%; object-fit: contain; }
+  .videoBox.big .badge, .videoBox.big .measureBig { display: none; }
+  .videoBox.big .bigExit {
+    display: flex; align-items: center; justify-content: center;
+    position: absolute; z-index: 3; top: calc(env(safe-area-inset-top) + 8px); right: calc(env(safe-area-inset-right) + 8px);
+    width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; border-radius: 50%;
+    background: rgba(0,0,0,.55); border: 2px solid rgba(255,255,255,.35); font-size: 20px; color: #fff;
+  }
+  .videoBox.big .bigBar {
+    display: flex; align-items: center; gap: 6px;
+    position: absolute; z-index: 3; left: 50%; transform: translateX(-50%);
+    bottom: calc(env(safe-area-inset-bottom) + 6px);
+    padding: 4px 8px; border-radius: 999px; background: rgba(0,0,0,.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    transition: opacity .35s; white-space: nowrap;
+  }
+  .videoBox.big .bigBar button {
+    width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; border-radius: 50%;
+    background: rgba(255,255,255,.12); font-size: 18px; color: #fff;
+  }
+  .videoBox.big .bigBar .bigPlay { width: 52px; background: var(--accent); }
+  .bigMeasure { color: #fff; font-weight: 800; font-size: 15px; padding: 0 6px 0 4px; font-variant-numeric: tabular-nums; min-width: 6.5em; text-align: center; }
+  .videoBox.big.idle .bigBar { opacity: 0; pointer-events: none; }
+  .videoBox.big.idle .bigExit { opacity: .35; }
+  .videoBox.big.idle { cursor: none; }
+  @media (orientation: portrait) and (max-width: 600px) {
+    .videoBox.big .rotateHint {
+      display: block; position: absolute; z-index: 3; left: 50%; transform: translateX(-50%);
+      top: calc(env(safe-area-inset-top) + 64px); width: max-content; max-width: 90%;
+      padding: 8px 14px; border-radius: 12px; background: rgba(0,0,0,.7); color: #fff; font-weight: 700; font-size: 15px;
+      text-align: center; transition: opacity .5s; pointer-events: none;
+    }
+    .videoBox.big .rotateHint.gone { opacity: 0; }
+  }
+
+  .card { background: var(--panel); border-radius: var(--radius); padding: 14px; }
+  .card h2 { margin: 0 0 10px; font-size: 15px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+
+  button {
+    font: inherit; color: var(--text); background: var(--panel2); border: 2px solid transparent;
+    border-radius: 14px; min-height: 52px; min-width: 52px; padding: 8px 14px; cursor: pointer;
+    font-weight: 800; touch-action: manipulation; user-select: none; -webkit-user-select: none;
+  }
+  button:active { transform: scale(.97); }
+  button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .row > button { flex: 1 1 0; }
+
+  .versions button { min-height: 64px; font-size: 19px; line-height: 1.15; border-width: 3px; }
+  .versions button small { display: block; font-size: 13px; font-weight: 600; opacity: .85; }
+  .v-full   { --c: var(--full); }
+  .v-guitar { --c: var(--guitar); }
+  .v-minus  { --c: var(--minus); }
+  .versions button { border-color: var(--c); color: var(--c); background: transparent; }
+  .versions button.on { background: var(--c); color: #111; }
+
+  .transport { display: grid; grid-template-columns: 1fr 1fr 1.6fr 1fr; gap: 10px; align-items: stretch; }
+  .transport button { font-size: 18px; }
+  #playBtn { background: var(--accent); font-size: 24px; min-height: 64px; }
+  .measureLine { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .measureNow { font-size: 40px; font-weight: 900; font-variant-numeric: tabular-nums; }
+  .measureNow span { color: var(--minus); }
+  .timeNow { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 18px; }
+  .progress {
+    position: relative; height: 18px; background: var(--panel2); border-radius: 999px; margin-top: 10px; overflow: hidden; cursor: pointer;
+    touch-action: none;
+  }
+  .progress .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--vcolor, var(--full)); width: 0; }
+  .progress .loopZone { position: absolute; top: 0; bottom: 0; background: rgba(255,61,127,.35); border-left: 2px solid var(--accent); border-right: 2px solid var(--accent); display: none; }
+  .progress.looping .loopZone { display: block; }
+
+  .speeds button.on { background: #ffd23f; color: #111; }
+
+  .stepRow { display: flex; gap: 12px; flex-wrap: wrap; }
+  .stepper { flex: 1 1 140px; background: var(--panel2); border-radius: 14px; padding: 8px; text-align: center; }
+  .stepper .lbl { font-size: 14px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .stepper .ctl { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 4px; }
+  .stepper .ctl button { background: #2d3252; font-size: 26px; width: 52px; padding: 0; }
+  .stepper .val { font-size: 32px; font-weight: 900; font-variant-numeric: tabular-nums; min-width: 2.2em; }
+
+  .toggle { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; justify-content: flex-start; margin-top: 10px; }
+  .toggle .sw { flex: 0 0 auto; width: 54px; height: 30px; border-radius: 999px; background: #3a3f63; position: relative; transition: background .2s; }
+  .toggle .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: left .2s; }
+  .toggle.on .sw { background: var(--accent); }
+  .toggle.on .sw::after { left: 27px; }
+  #loopBtn.on { border-color: var(--accent); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .chips button { min-height: 48px; font-size: 15px; padding: 6px 12px; border-radius: 999px; font-weight: 700; }
+  .chips button small { color: var(--muted); font-weight: 600; }
+  .chips button.star { border-color: var(--minus); }
+  .chips button.on { background: var(--accent); }
+  .chips button.on small { color: #fff; }
+
+  /* ---------- practice cards ---------- */
+  .practice { margin-top: 14px; }
+  .practice .intro { color: var(--muted); font-size: 16px; margin: -4px 0 12px; }
+  .pgrid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  @media (min-width: 640px) { .pgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1000px) { .pgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .pcard {
+    --c: var(--full);
+    position: relative; display: flex; flex-direction: column; gap: 8px;
+    background: var(--panel2); border-radius: 14px; padding: 12px; border: 3px solid transparent;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .pcard.v-full { --c: var(--full); } .pcard.v-guitar { --c: var(--guitar); } .pcard.v-minus { --c: var(--minus); }
+  .pcard.active { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,61,127,.25); }
+  .pcard.done .ptitle { opacity: .75; }
+  .phead { display: flex; align-items: center; gap: 12px; padding-right: 56px; }
+  .pnum {
+    flex: 0 0 auto; width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: var(--c); color: #111; font-size: 26px; font-weight: 900;
+  }
+  .ptitle { margin: 0; font-size: 19px; font-weight: 900; line-height: 1.2; }
+  .pmeta { display: flex; flex-wrap: wrap; gap: 6px; font-size: 14px; font-weight: 700; }
+  .pmeta span { padding: 2px 9px; border-radius: 999px; background: #2d3252; }
+  .pmeta .pver { color: var(--c); }
+  .ptip { margin: 0; font-size: 16px; line-height: 1.4; color: #dfe3ff; flex: 1 1 auto; }
+  .pgo { width: 100%; min-height: 56px; font-size: 19px; background: var(--c); color: #111; }
+  .pcard.active .pgo { background: var(--accent); color: #fff; }
+  .pdone {
+    position: absolute; top: 10px; right: 10px; min-width: 48px; min-height: 48px; width: 48px; height: 48px; padding: 0;
+    border-radius: 50%; background: #2d3252; color: var(--muted); font-size: 22px; border: 2px solid #3a3f63;
+  }
+  .pdone.on { background: var(--minus); color: #111; border-color: var(--minus); }
+  .pdone small { display: none; }
+
+  details.help { background: var(--panel); border-radius: var(--radius); padding: 4px 14px; }
+  details.help summary { min-height: 48px; display: flex; align-items: center; font-weight: 800; cursor: pointer; font-size: 18px; list-style: none; }
+  details.help summary::-webkit-details-marker { display: none; }
+  details.help summary::before { content: "▸"; margin-right: 10px; color: var(--accent); transition: transform .2s; display: inline-block; }
+  details.help[open] summary::before { transform: rotate(90deg); }
+  details.help ol { margin: 0 0 12px; padding-left: 24px; }
+  details.help li { margin: 6px 0; }
+  .tag { font-weight: 800; padding: 1px 8px; border-radius: 8px; color: #111; }
+  .kbd { color: var(--muted); font-size: 15px; margin: 0 0 12px; }
+
+  footer { color: var(--muted); font-size: 14px; text-align: center; margin: 18px 0 8px; }
+  .err { color: #ff8080; font-size: 15px; margin-top: 8px; display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="songHeading">TANK<span class="bang">!</span></h1>
+    <div class="sub" id="subtitle">Practice Player</div>
+    <label class="songPick"><span>Song</span>
+      <select id="songSelect" aria-label="Choose a song"></select>
+    </label>
+  </header>
+
+  <div class="layout">
+    <div class="stack">
+      <div class="videoBox" id="videoBox">
+        <video id="vid" playsinline webkit-playsinline preload="auto"></video>
+        <div class="badge" id="badge">Full Band</div>
+        <div class="measureBig" id="measureOverlay">Count-in</div>
+        <!-- big-screen only -->
+        <button class="bigExit" id="bigExit" aria-label="Exit big screen" title="Exit big screen (Esc)">✕</button>
+        <div class="rotateHint" id="rotateHint">↻ Turn your phone sideways for a bigger view</div>
+        <div class="bigBar" id="bigBar" role="toolbar" aria-label="Player controls">
+          <button id="bigRestart" aria-label="Restart" title="Restart">⟲</button>
+          <button id="bigBack" aria-label="Back 1 bar" title="Back 1 bar">⏮</button>
+          <button id="bigPlay" class="bigPlay" aria-label="Play or pause" title="Play / Pause">▶</button>
+          <button id="bigFwd" aria-label="Forward 1 bar" title="Forward 1 bar">⏭</button>
+          <span class="bigMeasure" id="bigMeasure">Count-in</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="transport">
+          <button id="restartBtn" title="Restart">⏮ Restart</button>
+          <button id="backBtn" title="Back 1 bar (←)">◀ 1 bar</button>
+          <button id="playBtn" title="Play / Pause (Space)">▶ Play</button>
+          <button id="fwdBtn" title="Forward 1 bar (→)">1 bar ▶</button>
+        </div>
+        <div class="progress" id="progress"><div class="loopZone" id="loopZone"></div><div class="fill" id="fill"></div></div>
+        <div class="measureLine">
+          <div class="measureNow" id="measureNow">Measure: <span>–</span></div>
+          <div class="timeNow" id="timeNow">0:00 / 0:00</div>
+        </div>
+        <div class="err" id="err"></div>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="card">
+        <h2>Which version?</h2>
+        <div class="row versions" id="versions"></div>
+        <button class="bigBtn" id="bigBtn" title="Big screen (F)">⛶ Big screen</button>
+      </div>
+
+      <div class="card">
+        <h2>Speed</h2>
+        <div class="row speeds" id="speeds"></div>
+      </div>
+
+      <div class="card">
+        <h2>Loop practice</h2>
+        <div class="stepRow">
+          <div class="stepper">
+            <div class="lbl">From measure</div>
+            <div class="ctl"><button data-step="from" data-d="-1" aria-label="From minus">−</button><div class="val" id="fromVal">9</div><button data-step="from" data-d="1" aria-label="From plus">+</button></div>
+          </div>
+          <div class="stepper">
+            <div class="lbl">To measure</div>
+            <div class="ctl"><button data-step="to" data-d="-1" aria-label="To minus">−</button><div class="val" id="toVal">14</div><button data-step="to" data-d="1" aria-label="To plus">+</button></div>
+          </div>
+        </div>
+        <button class="toggle" id="loopBtn"><span class="sw"></span><span>Loop is <b id="loopState">OFF</b></span></button>
+        <button class="toggle" id="leadBtn"><span class="sw"></span><span>Give me a count-in before the loop</span></button>
+        <div class="chips" id="chips"></div>
+      </div>
+    </div>
+  </div>
+
+  <section class="card practice" id="practice">
+    <h2>Practice cards</h2>
+    <p class="intro">Pick a card and tap <b>Practice this</b>. It sets up the loop, speed and version for you. Tap ✓ when you've got it!</p>
+    <div class="pgrid" id="pgrid"></div>
+  </section>
+
+  <details class="help" id="help" style="margin-top:14px">
+    <summary>How to practice</summary>
+    <ol>
+      <li><span class="tag" style="background:var(--full)">Full Band</span> Watch and listen first so you know how the whole song goes.</li>
+      <li><span class="tag" style="background:var(--guitar)">Guitar Only</span> Learn your notes — hear exactly what the guitar part sounds like.</li>
+      <li><span class="tag" style="background:var(--minus)">You Play!</span> The band plays without guitar — you're the guitarist. Play along!</li>
+      <li><b>Start slow:</b> set speed to <b>75%</b>, loop <b>measures 9–14</b> (the high chords), and turn on the count-in. When it feels easy, go to 90%, then 100%.</li>
+    </ol>
+    <p class="kbd">Keyboard: <b>Space</b> play/pause · <b>← / →</b> back/forward a bar · <b>1 / 2 / 3</b> switch version · <b>L</b> loop on/off · <b>F</b> big screen · <b>Esc</b> exit big screen</p>
+  </details>
+
+  <p id="demoWrap" style="text-align:center;margin:18px 0 0"><a id="demoLink" href="https://www.youtube.com/watch?v=7_j3s9eTnx0" target="_blank" rel="noopener" style="display:inline-block;padding:14px 22px;border-radius:14px;background:#ff3d3d;color:#fff;font-weight:700;font-size:18px;text-decoration:none">&#9654; <span id="demoText">Hear the real band (official Hal Leonard demo on YouTube)</span></a></p>
+  <footer id="songNote">Backing band is a practice reconstruction made from the guitar part only — not the official Hal Leonard recording.</footer>
+</div>
+
+<script>
+/* ========================== CONFIG: SONGS ==========================
+   HOW TO ADD A SONG
+   1. Make 3 videos for the song (same length, same timing, 1 bar count-in is typical):
+        full   = whole band + guitar      guitar = guitar part only      minus = band WITHOUT guitar
+      Name every video  <song-id>-full.mp4, <song-id>-guitar.mp4, <song-id>-minus.mp4
+      e.g. tank-full.mp4 ... or dashing-full.mp4, dashing-guitar.mp4, dashing-minus.mp4.
+   2. Copy the Tank! entry below and change the fields.
+      REQUIRED: id (short, unique, no spaces - used in saved progress keys), title, bpm,
+                beatsPerBar, countInBars, measures, videos (at least one of full / guitar / minus).
+      OPTIONAL: subtitle, demoUrl + demoLabel (YouTube button; hidden if no demoUrl),
+                note (small footer text), sections (loop chips: {name, from, to}),
+                cards (practice cards: {id, title, from, to, speed, version, tip};
+                       speed must be one of SPEEDS, version one of full / guitar / minus).
+   Timing: one bar = beatsPerBar * 60 / bpm seconds;
+           measure m starts at countInBars*bar + (m-1)*bar seconds into the video.
+   ==================================================================== */
+var SONGS = [
+  {
+    id: 'tank',
+    title: 'Tank!',
+    subtitle: 'Cowboy Bebop - Yoko Kanno, arr. Paul Murtha',
+    bpm: 128,
+    beatsPerBar: 4,
+    countInBars: 1,
+    measures: 85,
+    videos: { full: 'tank-full.mp4', guitar: 'tank-guitar.mp4', minus: 'tank-minus.mp4' },
+    demoUrl: 'https://www.youtube.com/watch?v=7_j3s9eTnx0',
+    demoLabel: 'Hear the real band (official Hal Leonard demo on YouTube)',
+    note: 'Backing band is a practice reconstruction made from the guitar part only — not the official Hal Leonard recording.',
+    sections: [
+      { name: 'Intro riff', from: 1, to: 2 },
+      { name: 'High chords (start here!)', from: 9, to: 14 },
+      { name: 'Comping', from: 23, to: 34 },
+      { name: 'Segno section', from: 35, to: 50 },
+      { name: 'Chord hits', from: 51, to: 58 },
+      { name: 'Repeat section', from: 59, to: 72 },
+      { name: 'Coda / ending', from: 73, to: 85 }
+    ],
+    // Practice cards: version is full / guitar / minus; speed must be one of SPEEDS.
+    cards: [
+      { id: 'high-chords',  title: 'High chords - start here!', from: 9,  to: 14, speed: 0.75, version: 'guitar',
+        tip: 'Same hand shape, slide it up one fret: E minor 6 (frets 11-9-8-7) to F minor 6 (frets 12-10-9-8) on the top four strings. Count 1 e & a out loud.' },
+      { id: 'high-along',   title: 'Same idea, then play along', from: 9, to: 14, speed: 0.9, version: 'minus',
+        tip: 'Now the band plays and you\'re the guitar. Watch the red line.' },
+      { id: 'intro-riff',   title: 'The intro riff', from: 1, to: 2, speed: 0.75, version: 'guitar',
+        tip: 'Low C on the A string, fret 3, with a bouncy funk rhythm, then Db (fret 4) and D (fret 5). Dots mean short, dashes mean full length.' },
+      { id: 'chord-hits',   title: 'Chord hits', from: 19, to: 22, speed: 0.75, version: 'full',
+        tip: 'Short, loud stabs together with the horns. The ^ mark means hit it hard and short. Rests are part of the rhythm: count them.' },
+      { id: 'comping',      title: 'Funky comping', from: 23, to: 34, speed: 0.9, version: 'minus',
+        tip: 'The page shows slashes (/ / / /). That means: keep playing the funk pattern in the chord written above.' },
+      { id: 'sign-section', title: 'The sign section', from: 35, to: 42, speed: 0.75, version: 'guitar',
+        tip: 'New chords every bar. Learn each grip from the fretboard picture at the bottom of the video before playing along.' },
+      { id: 'pushes',       title: 'Tricky pushes', from: 55, to: 58, speed: 0.5, version: 'guitar',
+        tip: 'These chords land just BEFORE the beat (called a push). Go slow. Check this rhythm with your teacher.' },
+      { id: 'repeat',       title: 'Repeat + endings', from: 59, to: 72, speed: 0.9, version: 'minus',
+        tip: 'On the page this part repeats. The video plays straight through; ask your teacher to show you the road map (repeat, 1st and 2nd endings, D.S. al Coda).' },
+      { id: 'big-ending',   title: 'Big ending', from: 73, to: 85, speed: 0.75, version: 'full',
+        tip: 'Loud hits that climb up (C, D, E, F#), then the final F sus chord. Hold it until the band director cuts you off.' }
+    ]
+  }
+];
+
+// The three versions every song can have (labels/colors shared by all songs).
+var VERSIONS = {
+  full:   { label: 'Full Band',   sub: 'whole band + guitar', color: 'var(--full)',   cls: 'v-full' },
+  guitar: { label: 'Guitar Only', sub: 'learn the notes',     color: 'var(--guitar)', cls: 'v-guitar' },
+  minus:  { label: 'You Play!',   sub: 'band without guitar', color: 'var(--minus)',  cls: 'v-minus' }
+};
+var VERSION_ORDER = ['full', 'guitar', 'minus'];
+var SPEEDS = [0.5, 0.75, 0.9, 1];
+/* ======================================================================== */
+
+(function () {
+  'use strict';
+  var EPS = 0.02;
+  var GLOBAL_KEY = 'jazzPracticePlayer.v1';                       // {song, version, speed, leadIn}
+  function loopKey(id) { return 'jazzPracticePlayer.loop.' + id + '.v1'; }   // {from, to, loop}
+  function doneKey(id) { return 'jazzPracticePlayer.done.' + id + '.v1'; }   // {cardId: true}
+  var LEGACY = { tank: { loop: 'tankPracticePlayer.v1', done: 'tankPracticePlayer.done.v1' } };
+
+  function $(id) { return document.getElementById(id); }
+  var vid = $('vid');
+  function readJSON(key) {
+    try { var v = JSON.parse(localStorage.getItem(key) || 'null'); return (v && typeof v === 'object') ? v : null; }
+    catch (e) { return null; }
+  }
+  function writeJSON(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* ignore */ } }
+  function findSong(id) { for (var i = 0; i < SONGS.length; i++) if (SONGS[i].id === id) return SONGS[i]; return null; }
+
+  // ---------- current song (everything song-specific hangs off these) ----------
+  var SONG, VIDEOS, BAR, OFFSET, doneMap = {}, activeCard = null;
+
+  var state = { song: SONGS[0].id, version: 'full', speed: 1, from: 1, to: 1, loop: false, leadIn: true };
+  (function () {
+    var g = readJSON(GLOBAL_KEY) || readJSON(LEGACY.tank.loop);   // legacy key held version/speed too
+    if (!g) return;
+    if (g.song && findSong(g.song)) state.song = g.song;
+    if (VERSIONS[g.version]) state.version = g.version;
+    if (SPEEDS.indexOf(g.speed) >= 0) state.speed = g.speed;
+    state.leadIn = g.leadIn !== false;
+  })();
+  function save() {
+    writeJSON(GLOBAL_KEY, { song: state.song, version: state.version, speed: state.speed, leadIn: state.leadIn });
+    writeJSON(loopKey(state.song), { from: state.from, to: state.to, loop: state.loop });
+  }
+  function saveDone() { writeJSON(doneKey(state.song), doneMap); }
+
+  // Point all song-dependent variables at song s. resetLoop: true = From/To 1..measures.
+  function useSong(s, resetLoop) {
+    SONG = s;
+    state.song = s.id;
+    BAR = (s.beatsPerBar || 4) * 60 / s.bpm;
+    OFFSET = BAR * (s.countInBars || 0);
+    VIDEOS = {};
+    VERSION_ORDER.forEach(function (k) {
+      if (s.videos && s.videos[k]) {
+        var meta = VERSIONS[k], v = { url: s.videos[k] };
+        for (var p in meta) v[p] = meta[p];
+        VIDEOS[k] = v;
+      }
+    });
+    if (!VIDEOS[state.version]) state.version = Object.keys(VIDEOS)[0];
+    var L = resetLoop ? null : (readJSON(loopKey(s.id)) || (LEGACY[s.id] && readJSON(LEGACY[s.id].loop)));
+    state.from = 1; state.to = s.measures;
+    if (L) {
+      if (L.from >= 1 && L.from <= s.measures) state.from = L.from | 0;
+      if (L.to >= 1 && L.to <= s.measures) state.to = L.to | 0;
+      if (state.to < state.from) state.to = state.from;
+      state.loop = !!L.loop;
+    }
+    doneMap = readJSON(doneKey(s.id)) || (LEGACY[s.id] && readJSON(LEGACY[s.id].done)) || {};
+    activeCard = null;
+  }
+  useSong(findSong(state.song) || SONGS[0], false);
+
+  // ---------- measure math ----------
+  function measureStart(m) { return OFFSET + (m - 1) * BAR; }   // countInBars*bar + (m-1)*bar
+  function measureEnd(m) { return measureStart(m) + BAR; }
+  function measureAt(t) {
+    if (t < OFFSET - EPS) return 0;                              // 0 = count-in
+    var m = Math.floor((t - OFFSET + EPS) / BAR) + 1;
+    return Math.min(Math.max(m, 1), SONG.measures);
+  }
+  function duration() {
+    var d = vid.duration;
+    return (isFinite(d) && d > 0) ? d : measureEnd(SONG.measures);
+  }
+  function clampTime(t) { return Math.max(0, Math.min(t, duration() - 0.05)); }
+  function fmt(t) {
+    if (!isFinite(t) || t < 0) t = 0;
+    var s = Math.floor(t), m = Math.floor(s / 60);
+    s = s % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  function seek(t) {
+    t = clampTime(t);
+    try { vid.currentTime = t; } catch (e) { /* not ready */ }
+    render();
+  }
+
+  // ---------- build UI ----------
+  var songSel = $('songSelect');
+  SONGS.forEach(function (s) {
+    var o = document.createElement('option');
+    o.value = s.id; o.textContent = s.title;
+    songSel.appendChild(o);
+  });
+  songSel.addEventListener('change', function () { selectSong(songSel.value); });
+
+  var verBox = $('versions');
+  VERSION_ORDER.forEach(function (k, i) {
+    var v = VERSIONS[k];
+    var b = document.createElement('button');
+    b.className = v.cls;
+    b.dataset.v = k;
+    b.title = v.label + ' (' + (i + 1) + ')';
+    b.innerHTML = v.label + '<small>' + v.sub + '</small>';
+    b.addEventListener('click', function () { setVersion(k); });
+    verBox.appendChild(b);
+  });
+  var spBox = $('speeds');
+  SPEEDS.forEach(function (s) {
+    var b = document.createElement('button');
+    b.dataset.s = s;
+    b.textContent = Math.round(s * 100) + '%';
+    b.addEventListener('click', function () { setSpeed(s); });
+    spBox.appendChild(b);
+  });
+  var chipBox = $('chips');
+  var pgrid = $('pgrid');
+
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  // Rebuild everything that depends on the current song.
+  function buildSongUI() {
+    songSel.value = SONG.id;
+    document.title = SONG.title + ' Practice Player';
+    var t = esc(SONG.title.toUpperCase());
+    $('songHeading').innerHTML = /!$/.test(t) ? t.slice(0, -1) + '<span class="bang">!</span>' : t;
+    $('subtitle').textContent = (SONG.subtitle ? SONG.subtitle + ' · ' : '') + SONG.bpm + ' bpm';
+    if (SONG.demoUrl) {
+      $('demoLink').href = SONG.demoUrl;
+      $('demoText').textContent = SONG.demoLabel || 'Hear the real band (YouTube)';
+      $('demoWrap').style.display = '';
+    } else {
+      $('demoWrap').style.display = 'none';
+    }
+    $('songNote').textContent = SONG.note || '';
+    $('songNote').style.display = SONG.note ? '' : 'none';
+    Array.prototype.forEach.call(verBox.children, function (b) { b.style.display = VIDEOS[b.dataset.v] ? '' : 'none'; });
+
+    chipBox.innerHTML = '';
+    (SONG.sections || []).forEach(function (sec) {
+      var b = document.createElement('button');
+      if (/start here/i.test(sec.name)) b.className = 'star';
+      b.dataset.from = sec.from; b.dataset.to = sec.to;
+      b.innerHTML = esc(sec.name) + ' <small>m' + sec.from + '–' + sec.to + '</small>';
+      b.addEventListener('click', function () {
+        state.from = sec.from; state.to = sec.to;
+        if (!state.loop) state.loop = true;
+        save(); updateLoopUI();
+        seek(loopStartTime());
+      });
+      chipBox.appendChild(b);
+    });
+
+    pgrid.innerHTML = '';
+    var cards = SONG.cards || [];
+    $('practice').style.display = cards.length ? '' : 'none';
+    cards.forEach(function (c, i) {
+      var v = VIDEOS[c.version] || VERSIONS[c.version] || VERSIONS.full;
+      var el = document.createElement('div');
+      el.className = 'pcard ' + v.cls;
+      el.dataset.id = c.id;
+      el.innerHTML =
+        '<div class="phead"><div class="pnum">' + (i + 1) + '</div><h3 class="ptitle"></h3></div>' +
+        '<div class="pmeta"><span>Measures ' + c.from + '–' + c.to + '</span><span>' + Math.round(c.speed * 100) + '% speed</span>' +
+        '<span class="pver">' + v.label + '</span></div>' +
+        '<p class="ptip"></p>' +
+        '<button class="pgo">▶ Practice this</button>' +
+        '<button class="pdone" aria-pressed="false">✓</button>';
+      el.querySelector('.ptitle').textContent = c.title;
+      el.querySelector('.ptip').textContent = c.tip;
+      var done = el.querySelector('.pdone');
+      done.title = 'Mark "' + c.title + '" as done';
+      done.setAttribute('aria-label', done.title);
+      done.addEventListener('click', function () {
+        if (doneMap[c.id]) delete doneMap[c.id]; else doneMap[c.id] = true;
+        saveDone(); updateCardsUI();
+      });
+      el.querySelector('.pgo').addEventListener('click', function () { practiceCard(c); });
+      pgrid.appendChild(el);
+    });
+  }
+
+  // User picked a song from the dropdown.
+  function selectSong(id) {
+    var s = findSong(id);
+    if (!s) return;
+    vid.pause();
+    useSong(s, true);                       // From/To reset to 1..measures
+    save();
+    buildSongUI();
+    updateVersionUI(); updateSpeedUI(); updateLoopUI();
+    loadVersion(state.version, 0, false);
+    render();
+  }
+
+  // ---------- practice cards ----------
+  function practiceCard(c) {
+    activeCard = c.id;
+    state.from = Math.max(1, Math.min(c.from, SONG.measures));
+    state.to = Math.max(state.from, Math.min(c.to, SONG.measures));
+    state.loop = true; state.leadIn = true;
+    if (SPEEDS.indexOf(c.speed) >= 0) state.speed = c.speed;
+    var k = VIDEOS[c.version] ? c.version : state.version;
+    var needLoad = k !== state.version || !vid.currentSrc;
+    state.version = k;
+    save();
+    updateVersionUI(); updateSpeedUI(); updateLoopUI();
+    if (needLoad) {
+      loadVersion(k, loopStartTime(), true);       // play() is called inside this click
+    } else {
+      seek(loopStartTime());
+      applyRate();
+      var p = vid.play(); if (p && p.catch) p.catch(function () {});
+    }
+    updateCardsUI();
+    try { $('videoBox').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
+  }
+  function updateCardsUI() {
+    // the active card stays marked only while its settings are still in place
+    var ac = null;
+    (SONG.cards || []).forEach(function (c) { if (c.id === activeCard) ac = c; });
+    if (ac && !(state.loop && state.from === ac.from && state.to === ac.to && state.version === ac.version)) activeCard = null;
+    Array.prototype.forEach.call(pgrid.children, function (el) {
+      var id = el.dataset.id, isDone = !!doneMap[id];
+      el.classList.toggle('active', id === activeCard);
+      el.classList.toggle('done', isDone);
+      var d = el.querySelector('.pdone');
+      d.classList.toggle('on', isDone);
+      d.setAttribute('aria-pressed', isDone ? 'true' : 'false');
+      el.querySelector('.pgo').textContent = id === activeCard ? '↻ Practicing — tap to restart' : '▶ Practice this';
+    });
+  }
+  buildSongUI();
+
+  // ---------- version switching ----------
+  var pendingSeek = null, pendingPlay = false;
+  function applyRate() {
+    try { vid.defaultPlaybackRate = state.speed; } catch (e) {}
+    try { vid.playbackRate = state.speed; } catch (e) {}
+    try { vid.preservesPitch = true; } catch (e) {}
+    try { vid.webkitPreservesPitch = true; } catch (e) {}
+    try { vid.mozPreservesPitch = true; } catch (e) {}
+  }
+  function loadVersion(k, keepTime, resume) {
+    var v = VIDEOS[k];
+    pendingSeek = keepTime;
+    pendingPlay = resume;
+    $('err').style.display = 'none';
+    vid.src = v.url;
+    vid.load();
+    applyRate();
+    if (resume) {
+      // call play() inside the user gesture (helps iPad Safari)
+      var p = vid.play();
+      if (p && p.catch) p.catch(function () {});
+    }
+  }
+  function setVersion(k) {
+    if (!VIDEOS[k]) return;
+    if (k === state.version && vid.currentSrc) return;
+    var t = vid.currentTime || 0;
+    if (pendingSeek != null) t = pendingSeek;
+    var wasPlaying = !vid.paused && !vid.ended;
+    state.version = k; save();
+    updateVersionUI();
+    loadVersion(k, t, wasPlaying);
+  }
+  vid.addEventListener('loadedmetadata', function () {
+    applyRate();
+    if (pendingSeek != null) {
+      var t = clampTime(pendingSeek);
+      pendingSeek = null;
+      try { vid.currentTime = t; } catch (e) {}
+    }
+    if (pendingPlay) {
+      pendingPlay = false;
+      var p = vid.play();
+      if (p && p.catch) p.catch(function () {});
+    }
+    render();
+  });
+  vid.addEventListener('error', function () {
+    var e = $('err');
+    e.textContent = 'Could not load "' + VIDEOS[state.version].url + '" — the video file may be missing.';
+    e.style.display = 'block';
+  });
+  vid.addEventListener('ratechange', function () {
+    if (Math.abs(vid.playbackRate - state.speed) > 0.001) applyRate();
+  });
+
+  function updateVersionUI() {
+    var v = VIDEOS[state.version];
+    Array.prototype.forEach.call(verBox.children, function (b) { b.classList.toggle('on', b.dataset.v === state.version); });
+    document.documentElement.style.setProperty('--vcolor', v.color);
+    $('badge').textContent = v.label;
+    updateCardsUI();
+  }
+
+  // ---------- speed ----------
+  function setSpeed(s) { state.speed = s; save(); applyRate(); updateSpeedUI(); }
+  function updateSpeedUI() {
+    Array.prototype.forEach.call(spBox.children, function (b) { b.classList.toggle('on', parseFloat(b.dataset.s) === state.speed); });
+  }
+
+  // ---------- loop ----------
+  function loopStartTime() { return Math.max(0, measureStart(state.from) - (state.leadIn ? BAR : 0)); }
+  function loopEndTime() { return measureEnd(state.to); }
+  function step(which, d) {
+    if (which === 'from') {
+      state.from = Math.min(Math.max(1, state.from + d), SONG.measures);
+      if (state.to < state.from) state.to = state.from;
+    } else {
+      state.to = Math.min(Math.max(1, state.to + d), SONG.measures);
+      if (state.from > state.to) state.from = state.to;
+    }
+    save(); updateLoopUI();
+  }
+  // press-and-hold auto-repeat for steppers
+  Array.prototype.forEach.call(document.querySelectorAll('[data-step]'), function (b) {
+    var timer = null, rep = null;
+    function stop() { clearTimeout(timer); clearInterval(rep); timer = rep = null; }
+    b.addEventListener('pointerdown', function (ev) {
+      ev.preventDefault();
+      step(b.dataset.step, +b.dataset.d);
+      stop();
+      timer = setTimeout(function () { rep = setInterval(function () { step(b.dataset.step, +b.dataset.d); }, 90); }, 450);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (n) { b.addEventListener(n, stop); });
+    b.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); ev.stopPropagation(); step(b.dataset.step, +b.dataset.d); }
+    });
+  });
+  $('loopBtn').addEventListener('click', function () {
+    state.loop = !state.loop; save(); updateLoopUI();
+    if (state.loop) {
+      var t = vid.currentTime || 0;
+      if (t < loopStartTime() - EPS || t >= loopEndTime()) seek(loopStartTime());
+    }
+  });
+  $('leadBtn').addEventListener('click', function () { state.leadIn = !state.leadIn; save(); updateLoopUI(); });
+  function updateLoopUI() {
+    $('fromVal').textContent = state.from;
+    $('toVal').textContent = state.to;
+    $('loopBtn').classList.toggle('on', state.loop);
+    $('loopState').textContent = state.loop ? 'ON' : 'OFF';
+    $('leadBtn').classList.toggle('on', state.leadIn);
+    Array.prototype.forEach.call(chipBox.children, function (b) {
+      b.classList.toggle('on', state.loop && +b.dataset.from === state.from && +b.dataset.to === state.to);
+    });
+    var d = duration();
+    var z = $('loopZone');
+    z.style.left = (loopStartTime() / d * 100) + '%';
+    z.style.width = (Math.max(0, Math.min(loopEndTime(), d) - loopStartTime()) / d * 100) + '%';
+    $('progress').classList.toggle('looping', state.loop);
+    updateCardsUI();
+  }
+  function checkLoop() {
+    if (!state.loop || vid.seeking) return;
+    var t = vid.currentTime;
+    var end = Math.min(loopEndTime(), duration() - 0.08);
+    if (t >= end) seek(loopStartTime());
+  }
+  vid.addEventListener('ended', function () {
+    if (state.loop) {
+      seek(loopStartTime());
+      var p = vid.play(); if (p && p.catch) p.catch(function () {});
+    }
+  });
+
+  // ---------- transport ----------
+  function togglePlay() {
+    if (!vid.currentSrc) loadVersion(state.version, 0, false);
+    if (vid.paused || vid.ended) {
+      if (state.loop) {
+        var t = vid.currentTime || 0;
+        if (t < loopStartTime() - EPS || t >= loopEndTime() - EPS) seek(loopStartTime());
+      }
+      applyRate();
+      var p = vid.play(); if (p && p.catch) p.catch(function () {});
+    } else {
+      vid.pause();
+    }
+  }
+  function curMeasureFloat() { return measureAt(vid.currentTime || 0); }
+  function back() {
+    var t = vid.currentTime || 0;
+    var m = measureAt(t);
+    if (m <= 1) { seek(m === 1 && t - measureStart(1) > 0.4 ? measureStart(1) : 0); return; }
+    // if we're well into the bar, a quick double-tap still moves back properly
+    seek(measureStart(m - 1));
+  }
+  function fwd() {
+    var m = curMeasureFloat();
+    if (m >= SONG.measures) return;
+    seek(measureStart(m + 1));
+  }
+  function restart() { seek(state.loop ? loopStartTime() : 0); }
+  $('playBtn').addEventListener('click', togglePlay);
+  $('backBtn').addEventListener('click', back);
+  $('fwdBtn').addEventListener('click', fwd);
+  $('restartBtn').addEventListener('click', restart);
+  // ---------- big screen ----------
+  var box = $('videoBox'), bigTimer = null, hintTimer = null, realFS = false;
+  function isBig() { return box.classList.contains('big'); }
+  function fsElement() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+  function showBar() {
+    box.classList.remove('idle');
+    clearTimeout(bigTimer);
+    if (isBig() && !vid.paused && !vid.ended) bigTimer = setTimeout(function () { box.classList.add('idle'); }, 3000);
+  }
+  function enterBig() {
+    if (isBig()) return;
+    box.classList.add('big');
+    document.documentElement.classList.add('bigOpen');
+    var hint = $('rotateHint');
+    hint.classList.remove('gone');
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(function () { hint.classList.add('gone'); }, 4000);
+    showBar(); render();
+    // Enhancement only: real fullscreen may be refused (sandboxed iframe, iPhone). The CSS overlay works without it.
+    try {
+      var req = box.requestFullscreen || box.webkitRequestFullscreen;
+      if (req) {
+        var r = req.call(box);
+        if (r && r.then) r.then(function () { realFS = true; }, function () { realFS = false; });
+        else realFS = !!fsElement();
+      }
+    } catch (e) { realFS = false; }
+  }
+  function exitBig() {
+    if (!isBig()) return;
+    box.classList.remove('big', 'idle');
+    document.documentElement.classList.remove('bigOpen');
+    clearTimeout(bigTimer); clearTimeout(hintTimer);
+    try {
+      if (fsElement()) {
+        var ex = document.exitFullscreen || document.webkitExitFullscreen;
+        var r = ex && ex.call(document);
+        if (r && r.catch) r.catch(function () {});
+      }
+    } catch (e) {}
+    realFS = false;
+  }
+  function toggleBig() { if (isBig()) exitBig(); else enterBig(); }
+  function onFsChange() {
+    if (fsElement() === box) { realFS = true; return; }
+    if (realFS && !fsElement()) { realFS = false; exitBig(); }   // user left real fullscreen
+  }
+  document.addEventListener('fullscreenchange', onFsChange);
+  document.addEventListener('webkitfullscreenchange', onFsChange);
+  // tap on the video: enter big screen; while big, just show the controls (never toggles play)
+  vid.addEventListener('click', function () { if (isBig()) showBar(); else enterBig(); });
+  box.addEventListener('mousemove', function () { if (isBig()) showBar(); });
+  box.addEventListener('touchstart', function () { if (isBig()) showBar(); }, { passive: true });
+  $('bigBtn').addEventListener('click', enterBig);
+  $('bigExit').addEventListener('click', exitBig);
+  $('bigRestart').addEventListener('click', function () { restart(); showBar(); });
+  $('bigBack').addEventListener('click', function () { back(); showBar(); });
+  $('bigFwd').addEventListener('click', function () { fwd(); showBar(); });
+  $('bigPlay').addEventListener('click', function () { togglePlay(); });
+  ['play', 'pause', 'ended'].forEach(function (n) { vid.addEventListener(n, showBar); });
+  ['play', 'pause', 'ended'].forEach(function (n) { vid.addEventListener(n, render); });
+
+  // progress bar scrubbing
+  (function () {
+    var bar = $('progress'), dragging = false;
+    function toTime(ev) {
+      var r = bar.getBoundingClientRect();
+      var x = Math.min(Math.max(0, ev.clientX - r.left), r.width);
+      return x / r.width * duration();
+    }
+    bar.addEventListener('pointerdown', function (ev) { dragging = true; try { bar.setPointerCapture(ev.pointerId); } catch (e) {} seek(toTime(ev)); });
+    bar.addEventListener('pointermove', function (ev) { if (dragging) seek(toTime(ev)); });
+    ['pointerup', 'pointercancel'].forEach(function (n) { bar.addEventListener(n, function () { dragging = false; }); });
+  })();
+
+  // ---------- rendering ----------
+  var lastLabel = '';
+  function render() {
+    var t = vid.currentTime || 0;
+    var m = measureAt(t);
+    var label = m === 0 ? 'Count-in' : String(m);
+    if (label !== lastLabel) {
+      lastLabel = label;
+      $('measureNow').innerHTML = 'Measure: <span>' + label + '</span>';
+      $('measureOverlay').textContent = m === 0 ? 'Count-in' : 'm. ' + m;
+      $('bigMeasure').textContent = m === 0 ? 'Count-in' : 'Measure ' + m;
+    }
+    $('timeNow').textContent = fmt(t) + ' / ' + fmt(duration());
+    $('fill').style.width = (t / duration() * 100) + '%';
+    var stopped = vid.paused || vid.ended;
+    $('playBtn').textContent = stopped ? '▶ Play' : '❚❚ Pause';
+    $('bigPlay').textContent = stopped ? '▶' : '❚❚';
+  }
+  vid.addEventListener('timeupdate', function () { checkLoop(); render(); });
+  vid.addEventListener('durationchange', updateLoopUI);
+  function tick() {
+    if (!vid.paused) { checkLoop(); render(); }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  // ---------- keyboard ----------
+  document.addEventListener('keydown', function (ev) {
+    if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    var tag = (ev.target && ev.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    switch (ev.key) {
+      case ' ': case 'Spacebar': ev.preventDefault(); togglePlay(); break;
+      case 'ArrowLeft': ev.preventDefault(); back(); break;
+      case 'ArrowRight': ev.preventDefault(); fwd(); break;
+      case '1': setVersion(VERSION_ORDER[0]); break;
+      case '2': setVersion(VERSION_ORDER[1]); break;
+      case '3': setVersion(VERSION_ORDER[2]); break;
+      case 'l': case 'L': $('loopBtn').click(); break;
+      case 'f': case 'F': toggleBig(); break;
+      case 'Escape': case 'Esc': if (!isBig()) return; exitBig(); break;
+      default: return;
+    }
+  });
+  // keep Space from also "clicking" a focused button (avoid double toggle)
+  document.addEventListener('keyup', function (ev) { if (ev.key === ' ' && ev.target.tagName === 'BUTTON') ev.preventDefault(); });
+  Array.prototype.forEach.call(document.querySelectorAll('button'), function (b) {
+    b.addEventListener('keydown', function (ev) { if (ev.key === ' ') ev.preventDefault(); });
+  });
+
+  // ---------- init ----------
+  updateVersionUI(); updateSpeedUI(); updateLoopUI();
+  loadVersion(state.version, state.loop ? loopStartTime() : 0, false);
+  render();
+
+  // expose for debugging/testing
+  window.__tank = { state: state, measureAt: measureAt, measureStart: measureStart, video: vid, setVersion: setVersion, selectSong: selectSong, song: function () { return SONG; } };
+})();
+</script>
+</body>
+</html>
