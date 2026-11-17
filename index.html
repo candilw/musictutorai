@@ -358,7 +358,7 @@
       <li><span class="tag" style="background:var(--full)">Full Band</span> Watch and listen first so you know how the whole song goes.</li>
       <li><span class="tag" style="background:var(--guitar)">Guitar Only</span> Learn your notes — hear exactly what the guitar part sounds like.</li>
       <li><span class="tag" style="background:var(--minus)">You Play!</span> The band plays without guitar — you're the guitarist. Play along!</li>
-      <li><b>Start slow:</b> set speed to <b>75%</b>, loop <b>measures 9–14</b> (the high chords), and turn on the count-in. When it feels easy, go to 90%, then 100%.</li>
+      <li><b>Start slow:</b> tap <b>card 1</b> in the Practice cards. It sets the speed to <b>75%</b>, loops the right measures and turns on the count-in. When it feels easy, go to 90%, then 100%.</li>
     </ol>
     <p class="kbd">Keyboard: <b>Space</b> play/pause · <b>← / →</b> back/forward a bar · <b>1 / 2 / 3 / 4</b> switch version · <b>L</b> loop on/off · <b>F</b> big screen · <b>Esc</b> exit big screen</p>
   </details>
@@ -441,6 +441,43 @@ var SONGS = [
         tip: 'On the page this part repeats. The video plays straight through; ask your teacher to show you the road map (repeat, 1st and 2nd endings, D.S. al Coda).' },
       { id: 'big-ending',   title: 'Big ending', from: 73, to: 85, speed: 0.75, version: 'full',
         tip: 'Loud hits that climb up (C, D, E, F#), then the final F sus chord. Hold it until the band director cuts you off.' }
+    ]
+  },
+  {
+    id: 'dashing',
+    title: 'Dashing Through the Snow!',
+    subtitle: 'Jingle Bells swing - arr. Andy Clark',
+    bpm: 140,
+    beatsPerBar: 4,
+    countInBars: 1,
+    measures: 92,
+    videos: { full: 'dashing-full.mp4', guitar: 'dashing-guitar.mp4', minus: 'dashing-minus.mp4' },
+    note: 'Backing band is a practice reconstruction made from the guitar part only — not the official Birch Island / Barnhouse recording. Tempo (140) is estimated from the published length (2:39).',
+    sections: [
+      { name: 'Intro', from: 1, to: 4 },
+      { name: 'Melody A (start here!)', from: 5, to: 12 },
+      { name: 'A again', from: 13, to: 20 },
+      { name: 'Bridge', from: 21, to: 36 },
+      { name: 'A x2', from: 37, to: 52 },
+      { name: 'Bridge 2', from: 53, to: 68 },
+      { name: 'A x2', from: 69, to: 84 },
+      { name: 'Ending', from: 85, to: 92 }
+    ],
+    cards: [
+      { id: 'four-beat',   title: 'Swing strumming - start here!', from: 1, to: 4, speed: 0.75, version: 'guitar',
+        tip: 'Each slash / means one strum on the beat: 1 2 3 4. Keep them short and even, like a clock ticking. The chord name above tells you which shape.' },
+      { id: 'slide',       title: 'The E to F slide', from: 5, to: 8, speed: 0.75, version: 'guitar',
+        tip: 'Same hand shape, one fret lower for E, then slide up to F on the "&" and HOLD it. The little curved line (a tie) means don\'t strum again - let it ring.' },
+      { id: 'slide-along', title: 'Same idea, then play along', from: 5, to: 12, speed: 0.9, version: 'minus',
+        tip: 'Now you are the guitarist. Swing means long-short 8th notes: "doo-ba doo-ba". Count 1 & 2 & out loud.' },
+      { id: 'walk-up',     title: 'Chords that climb', from: 7, to: 9, speed: 0.75, version: 'guitar',
+        tip: 'Gm, A-flat minor, A minor: the same shape moved up one fret each beat (frets 3, 4, 5), landing on B-flat 6.' },
+      { id: 'pushes',      title: 'Pushes (early chords)', from: 10, to: 12, speed: 0.5, version: 'guitar',
+        tip: 'Some chords land on the "&" just before the beat and get held. Count 1 & 2 & and strum right on the "&".' },
+      { id: 'bridge',      title: 'The bridge', from: 21, to: 36, speed: 0.75, version: 'full',
+        tip: 'New chords: F6, B-flat 6, C7. Learn each grip from the fretboard picture at the bottom of the video first.' },
+      { id: 'ending',      title: 'Big ending', from: 85, to: 92, speed: 0.75, version: 'full',
+        tip: 'The intro chords come back, then one short hit, then G-flat 7 slides to F9 and you HOLD it (the fermata) until the director cuts off.' }
     ]
   }
 ];
